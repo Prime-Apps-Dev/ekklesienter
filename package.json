@@ -1,0 +1,104 @@
+{
+  "name": "ekklesienter",
+  "private": true,
+  "version": "1.1.0",
+  "main": "dist-electron/main.js",
+  "homepage": "./",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && electron-builder",
+    "build:mac": "tsc && vite build && electron-builder --mac",
+    "build:win": "tsc && vite build && electron-builder --win",
+    "build:all": "tsc && vite build && electron-builder -mw",
+    "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.scripturepresenter.app",
+    "productName": "Ekklesienter",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32",
+            "arm64"
+          ]
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "@fontsource/alice": "^5.2.8",
+    "@fontsource/caveat": "^5.2.8",
+    "@fontsource/comfortaa": "^5.2.8",
+    "@fontsource/cormorant-garamond": "^5.2.11",
+    "@fontsource/dancing-script": "^5.2.8",
+    "@fontsource/fira-sans": "^5.2.7",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/lobster": "^5.2.8",
+    "@fontsource/lora": "^5.2.8",
+    "@fontsource/merriweather": "^5.2.11",
+    "@fontsource/montserrat": "^5.2.8",
+    "@fontsource/nunito": "^5.2.7",
+    "@fontsource/open-sans": "^5.2.7",
+    "@fontsource/oswald": "^5.2.8",
+    "@fontsource/playfair-display": "^5.2.8",
+    "@fontsource/pt-sans": "^5.2.8",
+    "@fontsource/pt-serif": "^5.2.8",
+    "@fontsource/raleway": "^5.2.8",
+    "@fontsource/roboto": "^5.2.9",
+    "@fontsource/ubuntu": "^5.2.8",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "dexie": "^4.3.0",
+    "dexie-react-hooks": "^4.2.0",
+    "i18next": "^25.8.0",
+    "i18next-browser-languagedetector": "^8.2.0",
+    "i18next-http-backend": "^3.0.2",
+    "jotai": "^2.17.0",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-i18next": "^16.5.4",
+    "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^4.5.6",
+    "react-router-dom": "^7.13.0",
+    "sql.js": "^1.13.0",
+    "tailwind-merge": "^3.4.1",
+    "zustand": "^5.0.10"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/jszip": "^3.4.0",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^40.1.0",
+    "electron-builder": "^26.7.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  }
+}

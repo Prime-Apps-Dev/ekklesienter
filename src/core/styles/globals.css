@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+    --color-accent: rgb(var(--accent));
+    --color-accent-foreground: rgb(var(--accent-foreground));
+    --color-accent-glow: var(--accent-glow);
+}
+
+:root {
+    --background: #0c0a09;
+    --foreground: #f5f5f4;
+
+    /* Theme Accents (Amber default) */
+    --accent: 245 158 11;
+    --accent-foreground: 12 10 9;
+    --accent-glow: rgba(245, 158, 11, 0.5);
+}
+
+[data-theme="rose"] {
+    --accent: 225 29 72;
+    --accent-foreground: 255 255 255;
+    --accent-glow: rgba(225, 29, 72, 0.5);
+}
+
+[data-theme="blue"] {
+    --accent: 37 99 235;
+    --accent-foreground: 255 255 255;
+    --accent-glow: rgba(37, 99, 235, 0.5);
+}
+
+[data-theme="stone"] {
+    --accent: 120 113 108;
+    --accent-foreground: 255 255 255;
+    --accent-glow: rgba(120, 113, 108, 0.5);
+}
+
+[data-theme="amber"] {
+    --accent: 245 158 11;
+    --accent-foreground: 12 10 9;
+    --accent-glow: rgba(245, 158, 11, 0.5);
+}
+
+body {
+    background-color: var(--background);
+    color: var(--foreground);
+}
+
+/* Use standard class to ensure override */
+.no-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+}

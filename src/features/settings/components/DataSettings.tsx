@@ -1,0 +1,106 @@
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/core/db';
+import { useBibleStore } from '@/core/store/bibleStore';
+import BibleManager from './BibleManager';
+import { AlertCircle, Database, Trash2, Info, Layers } from 'lucide-react';
+import { cn } from '@/core/utils/cn';
+
+const DataSettings: React.FC = () => {
+    const { t } = useTranslation();
+    const { secondTranslationId, setSecondTranslation } = useBibleStore();
+    const translations = useLiveQuery(() => db.translations.toArray()) || [];
+
+    const handleReset = async () => {
+        // We'll keep the standard confirm for safety but maybe style the trigger
+        if (confirm(t('reset_db_confirm'))) {
+            await db.delete();
+            window.location.reload();
+        }
+    };
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+
+            {/* Main Data Section */}
+            <div className="bg-stone-900/40 border border-white/5 rounded-3xl p-6 relative overflow-hidden group">
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="p-2 bg-stone-800 rounded-xl">
+                        <Database className="w-5 h-5 text-accent" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-white tracking-tight">{t('bible_translations')}</h3>
+                        <p className="text-xs text-stone-500 font-medium">{t('data_management_desc')}</p>
+                    </div>
+                </div>
+
+                {/* Bible Manager Content */}
+                <BibleManager />
+            </div>
+
+            {/* Multi-translation Selection */}
+            <div className="bg-stone-900/40 border border-white/5 rounded-3xl p-6 relative overflow-hidden group">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-stone-800 rounded-xl">
+                        <Layers className="w-5 h-5 text-accent" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-white tracking-tight">{t('secondary_translation')}</h3>
+                        <p className="text-xs text-stone-500 font-medium">{t('secondary_translation_desc')}</p>
+                    </div>
+                </div>
+
+                <div className="relative z-10">
+                    <select
+                        value={secondTranslationId || ''}
+                        onChange={(e) => setSecondTranslation(e.target.value || null)}
+                        className="w-full bg-stone-950/60 border border-white/5 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all appearance-none cursor-pointer"
+                    >
+                        <option value="">{t('none')}</option>
+                        {translations.map(tr => (
+                            <option key={tr.id} value={tr.id}>{tr.name} ({tr.id})</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* Danger Zone Card */}
+            <div className="bg-red-950/10 border border-red-900/20 rounded-3xl p-6 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-3xl rounded-full translate-x-10 -translate-y-10 group-hover:bg-red-500/10 transition-colors" />
+
+                <div className="flex items-start justify-between gap-6 relative z-10">
+                    <div className="flex items-start gap-3">
+                        <div className="p-2 bg-red-900/20 rounded-xl shrink-0">
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                        </div>
+                        <div className="max-w-md">
+                            <h3 className="text-lg font-bold text-red-100 tracking-tight">{t('danger_zone')}</h3>
+                            <p className="text-xs text-red-900/80 font-medium mt-1 leading-relaxed">
+                                {t('reset_database_desc')}
+                            </p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleReset}
+                        className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-red-900/40 flex items-center gap-2 shrink-0 active:scale-95"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        {t('reset_database')}
+                    </button>
+                </div>
+
+                <div className="mt-6 p-3 bg-red-950/30 rounded-xl border border-red-900/20 flex items-center gap-3 relative z-10">
+                    <Info className="w-4 h-4 text-red-400 shrink-0" />
+                    <p className="text-[10px] text-red-300/70 font-medium italic">
+                        {t('data_reset_warning')}
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    );
+};
+
+export default DataSettings;
