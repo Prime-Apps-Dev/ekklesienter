@@ -1,8 +1,24 @@
-import { app, BrowserWindow, screen, ipcMain } from 'electron';
+import { app, BrowserWindow, screen, ipcMain, dialog, protocol, net } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
+import crypto from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Register custom protocol as privileged before app is ready
+protocol.registerSchemesAsPrivileged([
+    {
+        scheme: 'local-resource',
+        privileges: {
+            standard: true,
+            secure: true,
+            supportFetchAPI: true,
+            bypassCSP: true,
+            stream: true
+        }
+    }
+]);
 
 // The built directory structure
 //
@@ -21,6 +37,13 @@ process.env.VITE_PUBLIC = app.isPackaged ? process.env.DIST : path.join(__dirnam
 let mainWindow: BrowserWindow | null;
 let projectorWindow: BrowserWindow | null;
 
+const TEMPLATES_DIR = path.join(app.getPath('userData'), 'templates');
+
+// Ensure templates directory exists
+if (!fs.existsSync(TEMPLATES_DIR)) {
+    fs.mkdirSync(TEMPLATES_DIR, { recursive: true });
+}
+
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
@@ -30,9 +53,19 @@ function createMainWindow() {
         width: 1200,
         height: 800,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.mjs'),
+            preload: path.join(__dirname, 'preload.cjs'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: false
         },
     });
+
+    console.log('Main Process: Main Window Created');
+    console.log('Main Process: Preload Path:', path.join(__dirname, 'preload.cjs'));
+
+    if (VITE_DEV_SERVER_URL) {
+        mainWindow.webContents.openDevTools();
+    }
 
     // Test active push message to Renderer-process
     mainWindow.webContents.on('did-finish-load', () => {
@@ -94,9 +127,15 @@ function createProjectorWindow(displaySettings?: any) {
         frame: false,
         alwaysOnTop: true,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.mjs'),
+            preload: path.join(__dirname, 'preload.cjs'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: false
         },
     });
+
+    console.log('Main Process: Projector Window Created');
+    console.log('Main Process: Preload Path:', path.join(__dirname, 'preload.cjs'));
 
     if (VITE_DEV_SERVER_URL) {
         projectorWindow.loadURL(`${VITE_DEV_SERVER_URL}/projector.html`);
@@ -135,6 +174,46 @@ app.on('activate', () => {
 });
 
 app.whenReady().then(() => {
+    // Error logging for Main Process
+    process.on('uncaughtException', (error) => {
+        console.error('CRITICAL MAIN PROCESS ERROR:', error);
+    });
+
+    process.on('unhandledRejection', (reason) => {
+        console.error('UNHANDLED MAIN PROCESS REJECTION:', reason);
+    });
+
+    console.log('Main Process: Error Logging Initialized');
+
+    // Register custom protocol for local resources
+    protocol.handle('local-resource', async (request) => {
+        try {
+            const urlStr = request.url;
+            const url = new URL(urlStr);
+            let filePath = decodeURIComponent(url.pathname);
+
+            if (url.host && url.host !== '' && !url.host.match(/^[a-zA-Z]:$/)) {
+                filePath = '/' + url.host + filePath;
+            }
+
+            if (process.platform === 'win32') {
+                if (filePath.startsWith('/') && filePath.match(/^\/[a-zA-Z]:/)) {
+                    filePath = filePath.slice(1);
+                }
+            } else {
+                if (!filePath.startsWith('/')) {
+                    filePath = '/' + filePath;
+                }
+            }
+
+            console.log(`[Protocol] Loading: ${filePath}`);
+            return await net.fetch(`file://${filePath}`);
+        } catch (error) {
+            console.error('[Protocol] Error:', error);
+            return new Response('Not Found', { status: 404 });
+        }
+    });
+
     createMainWindow();
 
     ipcMain.handle('open-projector', (event, displaySettings) => {
@@ -159,14 +238,18 @@ app.whenReady().then(() => {
         }
     });
 
-    // Relay projector ready state to main window so it can send initial data
     ipcMain.on('projector-ready', (event, payload) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('projector-ready', payload);
         }
     });
 
-    // Relay navigation commands from Projector to Main window
+    ipcMain.on('relay-keydown', (event, payload) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('relay-keydown', payload);
+        }
+    });
+
     ipcMain.on('navigate-verse', (event, direction) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('navigate-verse', direction);
@@ -180,4 +263,137 @@ app.whenReady().then(() => {
         }
         return true;
     });
+
+    ipcMain.handle('select-file', async (event, options) => {
+        console.log('IPC: select-file called');
+        try {
+            const result = await dialog.showOpenDialog(mainWindow!, {
+                properties: ['openFile'],
+                filters: [
+                    { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'] }
+                ],
+                ...options
+            });
+            console.log('IPC: select-file result:', result.filePaths[0]);
+            return result.filePaths[0];
+        } catch (error) {
+            console.error('IPC: select-file error:', error);
+            return null;
+        }
+    });
+
+    ipcMain.handle('select-folder', async () => {
+        console.log('IPC: select-folder called');
+        try {
+            const result = await dialog.showOpenDialog(mainWindow!, {
+                properties: ['openDirectory']
+            });
+            console.log('IPC: select-folder result:', result.filePaths[0]);
+            return result.filePaths[0];
+        } catch (error) {
+            console.error('IPC: select-folder error:', error);
+            return null;
+        }
+    });
+
+    ipcMain.handle('read-directory-recursive', async (event, dirPath) => {
+        console.log('IPC: read-directory-recursive called for:', dirPath);
+
+        async function getFiles(dir: string): Promise<string[]> {
+            const dirents = await fs.promises.readdir(dir, { withFileTypes: true });
+            const files = await Promise.all(dirents.map((dirent: any) => {
+                const res = path.resolve(dir, dirent.name);
+                return dirent.isDirectory() ? getFiles(res) : res;
+            }));
+            return files.flat();
+        }
+
+        try {
+            const allFiles = await getFiles(dirPath);
+            const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'];
+            const imageFiles = allFiles.filter((f: string) =>
+                validExtensions.includes(path.extname(f).toLowerCase())
+            );
+
+            console.log(`IPC: found ${imageFiles.length} images`);
+            return imageFiles.map(f => ({
+                id: crypto.randomUUID(),
+                name: path.basename(f),
+                url: `local-resource://${f.startsWith('/') ? '' : '/'}${f}`
+            }));
+        } catch (err) {
+            console.error('Error reading directory:', err);
+            return [];
+        }
+    });
+
+    ipcMain.handle('read-file-data', async (event, filePath) => {
+        console.log('IPC: read-file-data called for:', filePath);
+        try {
+            const buffer = await fs.promises.readFile(filePath);
+            const ext = path.extname(filePath).toLowerCase();
+            const mimeMap: Record<string, string> = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif',
+                '.svg': 'image/svg+xml',
+                '.webp': 'image/webp'
+            };
+            return {
+                data: buffer,
+                mimeType: mimeMap[ext] || 'application/octet-stream'
+            };
+        } catch (error) {
+            console.error('IPC: read-file-data error:', error);
+            return null;
+        }
+    });
+
+    // --- Template Management IPCs ---
+
+    ipcMain.handle('templates:list', async () => {
+        try {
+            const files = await fs.promises.readdir(TEMPLATES_DIR);
+            return files.filter(f => f.endsWith('.ektmp'));
+        } catch (error) {
+            console.error('Error listing templates:', error);
+            return [];
+        }
+    });
+
+    ipcMain.handle('templates:read', async (event, filename) => {
+        try {
+            const filePath = path.join(TEMPLATES_DIR, filename);
+            const buffer = await fs.promises.readFile(filePath);
+            return buffer;
+        } catch (error) {
+            console.error('Error reading template:', error);
+            return null;
+        }
+    });
+
+    ipcMain.handle('templates:write', async (event, filename, data) => {
+        try {
+            const filePath = path.join(TEMPLATES_DIR, filename);
+            await fs.promises.writeFile(filePath, Buffer.from(data));
+            return true;
+        } catch (error) {
+            console.error('Error writing template:', error);
+            return false;
+        }
+    });
+
+    ipcMain.handle('templates:delete', async (event, filename) => {
+        try {
+            const filePath = path.join(TEMPLATES_DIR, filename);
+            await fs.promises.unlink(filePath);
+            return true;
+        } catch (error) {
+            console.error('Error deleting template:', error);
+            return false;
+        }
+    });
+
+    ipcMain.handle('templates:get-path', () => TEMPLATES_DIR);
 });

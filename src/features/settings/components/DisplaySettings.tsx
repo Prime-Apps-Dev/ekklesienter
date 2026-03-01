@@ -130,7 +130,7 @@ const DisplaySettings: React.FC = () => {
                                             <Monitor className="w-5 h-5 text-accent" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-bold text-white break-words">
+                                            <h4 className="text-sm font-bold text-white wrap-break-word">
                                                 {display.label || `${t('display')} ${display.id}`}
                                             </h4>
                                             <p className="text-[10px] text-stone-500 font-medium">

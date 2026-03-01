@@ -126,7 +126,7 @@ const AboutSettings: React.FC = () => {
                         {t('crafted_with_passion')}
                     </p>
                     <div className="flex items-center justify-center gap-4 text-[9px] text-stone-800 font-medium uppercase tracking-[0.2em]">
-                        <span>Scripture Presenter</span>
+                        <span>Ekklesienter</span>
                         <span className="w-1 h-1 rounded-full bg-stone-900" />
                         <span>Soli Deo Gloria</span>
                         <span className="w-1 h-1 rounded-full bg-stone-900" />

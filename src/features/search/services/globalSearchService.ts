@@ -19,8 +19,8 @@ export async function searchVerses(
     const lowerQuery = query.toLowerCase();
 
     // We search in the current translation
-    // Optimization: We could use a full-text search index if we had one, 
-    // but with Dexie we'll filter on the collection.
+    // Optimization: Scope by translationId index first, then filter.
+    // This is much faster than a full-table filter.
     const verses = await db.verses
         .where('translationId')
         .equals(translationId)

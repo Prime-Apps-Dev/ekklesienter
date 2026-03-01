@@ -4,6 +4,7 @@ import settings from './en/settings';
 import design from './en/design';
 import app from './en/app';
 import presentation from './en/presentation';
+import changelog from './en/changelog';
 
 export default {
     ...common,
@@ -11,5 +12,6 @@ export default {
     ...settings,
     ...design,
     ...app,
-    ...presentation
+    ...presentation,
+    ...changelog
 };

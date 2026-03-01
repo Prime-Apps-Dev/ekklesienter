@@ -9,10 +9,14 @@ import { parseSearchQuery } from '@/features/search/utils/searchParser';
 import { searchVerses, SearchResult } from '@/features/search/services/globalSearchService';
 import { cn } from '@/core/utils/cn';
 import TranslationPicker from '@/shared/ui/TranslationPicker';
-import WorkflowPicker from '@/shared/ui/WorkflowPicker';
+import ServicePicker from '@/shared/ui/ServicePicker';
 import { useAtom } from 'jotai';
 import { appModeAtom } from '@/core/store/uiAtoms';
 import { usePresentationStore } from '@/core/store/presentationStore';
+import { useModalStore, ModalType } from '@/core/store/modalStore';
+import { MediaPoolPanel } from '@/features/presenter/components/media-pool/MediaPoolPanel';
+import { ISlide } from '@/core/types';
+
 
 /**
  * Helper to highlight search matches
@@ -92,12 +96,22 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ onOpenSettings }) => 
   const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
   const pickerTriggerRef = useRef<HTMLButtonElement>(null);
   const modeTriggerRef = useRef<HTMLButtonElement>(null);
+  const { openModal } = useModalStore();
+  const {
+    activeServiceId,
+    setActiveService,
+    activeService,
+    saveActiveService,
+    activePresentationId,
+    activePresentation,
+    activeBlockId,
+    setActiveBlockId
+  } = usePresentationStore();
 
   const resizer = useVerticalResize('books-chapters-split', 55, 20, 80);
 
   const blocks = useLiveQuery(() => db.blocks.toArray()) || [];
   const sections = useLiveQuery(() => db.sections.toArray()) || [];
-  const workflows = useLiveQuery(() => db.workflows.toArray()) || [];
 
   const books = useLiveQuery(
     async () => {
@@ -136,13 +150,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ onOpenSettings }) => 
   }, [booksMap, books]);
 
   const currentBook = booksMap.get(currentBookId);
-  const { activeWorkflowId, setActiveWorkflow, saveActiveWorkflow } = usePresentationStore();
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
-  const activeWorkflow = useLiveQuery(
-    () => activeWorkflowId ? db.workflows.get(activeWorkflowId) : undefined,
-    [activeWorkflowId]
-  );
+
 
   const lang = i18n.language?.substring(0, 2) || 'en';
   const isRu = lang === 'ru';
@@ -163,7 +173,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ onOpenSettings }) => 
   }, [sortedBooks, searchQuery, parseResult, lang]);
 
   useEffect(() => {
-    const performGlobalSearch = async () => {
+    const timer = setTimeout(async () => {
       if (parseResult.type === 'keyword' && parseResult.query.length >= 2) {
         setIsSearching(true);
         const results = await searchVerses(parseResult.query, currentTranslationId);
@@ -172,8 +182,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ onOpenSettings }) => 
       } else {
         setSearchResults([]);
       }
-    };
-    performGlobalSearch();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
   }, [parseResult, currentTranslationId]);
 
   const handleSearchResultClick = (result: SearchResult) => {
@@ -490,22 +501,42 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ onOpenSettings }) => 
               </div>
               <div className="grid grid-cols-1 gap-2">
                 {blocks.map((block) => {
-                  const IconMap: any = { Monitor, Music, Coins, Baby, Mic2, Megaphone, Plus };
+                  const IconMap: any = { Monitor, Music, Coins, Baby, Mic2, Megaphone, Plus, BookOpen };
                   const BlockIcon = IconMap[block.icon] || Presentation;
+                  const isActive = activeBlockId === block.id;
+
                   return (
                     <button
                       key={block.id}
-                      className="w-full flex items-center gap-3 p-3 rounded-2xl bg-stone-900/40 border border-white/5 hover:border-accent/40 hover:bg-stone-800/60 transition-all group active:scale-[0.98] shadow-lg shadow-black/10"
+                      onClick={() => {
+                        if (block.id === 'bible') {
+                          openModal(ModalType.BIBLE_SELECTION);
+                        } else {
+                          setActiveBlockId(isActive ? null : block.id);
+                        }
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-2xl border transition-all group active:scale-[0.98] shadow-lg shadow-black/10",
+                        isActive
+                          ? "bg-accent/10 border-accent/40"
+                          : "bg-stone-900/40 border-white/5 hover:border-accent/40 hover:bg-stone-800/60"
+                      )}
                     >
-                      <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center border border-accent/20 shrink-0 group-hover:scale-110 transition-transform">
-                        <BlockIcon className="w-5 h-5 text-accent" />
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 group-hover:scale-110 transition-transform",
+                        isActive ? "bg-accent/20 border-accent/20" : "bg-accent/20 border-accent/20"
+                      )}>
+                        <BlockIcon className={cn("w-5 h-5", isActive ? "text-accent" : "text-accent")} />
                       </div>
-                      <div className="flex flex-col text-left min-w-0">
-                        <span className="text-xs font-bold text-stone-200 truncate uppercase tracking-tight">
+                      <div className="flex flex-col text-left min-w-0 flex-1">
+                        <span className={cn(
+                          "text-xs font-bold truncate uppercase tracking-tight transition-colors",
+                          isActive ? "text-accent" : "text-stone-200"
+                        )}>
                           {isRu ? block.nameRu : block.name}
                         </span>
                         <span className="text-[10px] font-bold text-stone-600 uppercase tracking-widest truncate">
-                          {isRu ? block.description : block.name}
+                          {isRu ? (block.description || block.nameRu) : block.description || block.name}
                         </span>
                       </div>
                     </button>
@@ -514,36 +545,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ onOpenSettings }) => 
               </div>
             </div>
 
-            {/* Sections Section */}
-            <div className="space-y-3">
-              <div className="px-1 flex items-center justify-between">
-                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <List className="w-3 h-3" />
-                  {t('sections', 'Sections')}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                {sections.map((section) => (
-                  <button
-                    key={section.id}
-                    className="w-full h-[60px] flex items-center gap-3 p-3 rounded-2xl bg-stone-900/40 border border-white/5 hover:border-accent/40 hover:bg-stone-800/60 transition-all group active:scale-[0.98] shadow-lg shadow-black/10"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-stone-800 flex items-center justify-center shrink-0 border border-white/5 group-hover:bg-accent/20 group-hover:border-accent/20 transition-colors">
-                      <Layers className="w-4 h-4 text-stone-500 group-hover:text-accent" />
-                    </div>
-                    <div className="flex flex-col text-left min-w-0">
-                      <span className="text-xs font-bold text-stone-200 truncate group-hover:text-white">
-                        {isRu ? section.nameRu : section.name}
-                      </span>
-                      <span className="text-[10px] font-bold text-stone-600 uppercase tracking-widest mt-0.5">
-                        {section.blockIds.length} {t('blocks_count', 'Blocks')}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+            {/* Media Pool Section */}
+            <div className="flex-1 min-h-0">
+              <MediaPoolPanel />
             </div>
           </div>
+
         )}
       </div>
 
@@ -568,73 +575,28 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ onOpenSettings }) => 
             </div>
           </button>
         ) : (
-          <div className="w-full h-[60px] flex items-center gap-3 p-3 rounded-2xl bg-stone-900/40 border border-white/5 shadow-xl shadow-black/20">
-            <button
-              ref={pickerTriggerRef}
-              onClick={() => {
-                if (pickerTriggerRef.current) {
-                  setTriggerRect(pickerTriggerRef.current.getBoundingClientRect());
-                }
-                setIsPickerOpen(true);
-              }}
-              className="flex-1 flex items-center gap-3 min-w-0 transition-opacity hover:opacity-80"
-            >
-              <div className="min-w-10 h-8 px-2 rounded-xl bg-accent flex items-center justify-center border border-accent/20 shadow-lg shadow-accent/10 shrink-0">
-                <Workflow className="w-4 h-4 text-accent-foreground" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className="text-[10px] font-bold text-stone-300 uppercase leading-none truncate">
-                  {activeWorkflow ? (isRu ? activeWorkflow.nameRu : activeWorkflow.name) : t('select_workflow', 'Select Workflow')}
-                </span>
-                <span className="text-[10px] font-bold text-stone-600 uppercase tracking-widest mt-0.5 truncate">
-                  {activeWorkflow ? (isRu ? activeWorkflow.description : activeWorkflow.description) : t('no_active_workflow', 'No active workflow')}
-                </span>
-              </div>
-            </button>
-
-            {activeWorkflow && (
-              <div className="flex items-center">
-                {showSaveConfirm ? (
-                  <div className="flex items-center gap-1 animate-in fade-in zoom-in duration-200">
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        setIsSaving(true);
-                        await saveActiveWorkflow();
-                        setIsSaving(false);
-                        setShowSaveConfirm(false);
-                      }}
-                      disabled={isSaving}
-                      className="p-2 bg-green-500/20 hover:bg-green-500/30 text-green-500 rounded-xl transition-all flex items-center gap-1.5"
-                    >
-                      <Check className="w-4 h-4" />
-                      <span className="text-[10px] font-black uppercase pr-1">{t('save_confirm', 'Are you sure?') || 'Save?'}</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowSaveConfirm(false);
-                      }}
-                      className="p-2 hover:bg-white/5 text-stone-500 rounded-xl transition-all"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSaveConfirm(true);
-                    }}
-                    className="p-2 h-10 w-10 bg-stone-800/50 hover:bg-accent/20 text-stone-500 hover:text-accent border border-white/5 rounded-xl transition-all group flex items-center justify-center"
-                    title={t('save_workflow', 'Save Workflow')}
-                  >
-                    <Save className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          <button
+            ref={pickerTriggerRef}
+            onClick={() => {
+              if (pickerTriggerRef.current) {
+                setTriggerRect(pickerTriggerRef.current.getBoundingClientRect());
+              }
+              setIsPickerOpen(true);
+            }}
+            className="w-full h-[60px] flex items-center gap-3 p-3 rounded-2xl bg-stone-900/40 border border-white/5 hover:border-accent/40 hover:bg-stone-800/60 transition-all group active:scale-95 shadow-xl shadow-black/20"
+          >
+            <div className="min-w-10 h-8 px-2 rounded-xl bg-accent flex items-center justify-center border border-accent/20 shadow-lg shadow-accent/10 shrink-0 group-hover:shadow-accent/20 transition-all">
+              <Workflow className="w-4 h-4 text-accent-foreground" />
+            </div>
+            <div className="flex flex-col min-w-0 text-left">
+              <span className="text-[10px] font-bold text-stone-300 uppercase leading-none truncate group-hover:text-white transition-colors">
+                {activeService ? (isRu ? activeService.nameRu : activeService.name) : t('select_service', 'Select Service')}
+              </span>
+              <span className="text-[8px] font-bold text-stone-600 uppercase tracking-widest mt-1 truncate group-hover:text-stone-400">
+                {activeService?.fileHandle ? t('linked', 'Linked') : t('local', 'Local')}
+              </span>
+            </div>
+          </button>
         )}
 
         {/* Picker Overlays */}
@@ -647,11 +609,15 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ onOpenSettings }) => 
               triggerRect={triggerRect}
             />
           ) : (
-            <WorkflowPicker
-              currentWorkflowId={activeWorkflowId}
-              onSelect={setActiveWorkflow}
+            <ServicePicker
+              currentServiceId={activeServiceId}
+              onSelect={setActiveService}
               onClose={() => setIsPickerOpen(false)}
               triggerRect={triggerRect}
+              onServiceCreated={(id) => {
+                setActiveService(id);
+                setIsPickerOpen(false);
+              }}
             />
           )
         )}

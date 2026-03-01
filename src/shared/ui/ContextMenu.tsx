@@ -11,6 +11,8 @@ interface ContextMenuProps {
 
 const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, children }) => {
     const menuRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = React.useState({ top: y, left: x });
+    const [isVisible, setIsVisible] = React.useState(false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -29,23 +31,44 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, children }) =>
         };
     }, [onClose]);
 
-    // Ensure menu stays within screen bounds
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-    const menuWidth = 220; // assumed max width
-    const menuHeight = 200; // assumed max height
+    React.useLayoutEffect(() => {
+        if (menuRef.current) {
+            const rect = menuRef.current.getBoundingClientRect();
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const margin = 16;
 
-    const finalX = x + menuWidth > screenWidth ? screenWidth - menuWidth - 10 : x;
-    const finalY = y + menuHeight > screenHeight ? screenHeight - menuHeight - 10 : y;
+            let left = x;
+            let top = y;
+
+            // Adjust horizontal
+            if (left + rect.width > screenWidth - margin) {
+                left = Math.max(margin, screenWidth - rect.width - margin);
+            } else if (left < margin) {
+                left = margin;
+            }
+
+            // Adjust vertical
+            if (top + rect.height > screenHeight - margin) {
+                top = Math.max(margin, screenHeight - rect.height - margin);
+            } else if (top < margin) {
+                top = margin;
+            }
+
+            setPos({ top, left });
+            setIsVisible(true);
+        }
+    }, [x, y]);
 
     return createPortal(
         <div
             ref={menuRef}
             className={cn(
-                "fixed z-100 min-w-[200px] bg-stone-900/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl py-2 overflow-hidden",
+                "fixed z-100 min-w-[200px] bg-stone-900/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl py-2 overflow-hidden transition-opacity duration-200",
+                isVisible ? "opacity-100" : "opacity-0",
                 "animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200"
             )}
-            style={{ top: finalY, left: finalX }}
+            style={{ top: pos.top, left: pos.left }}
             onContextMenu={(e) => e.preventDefault()}
         >
             <div className="absolute inset-0 bg-linear-to-br from-white/5 to-transparent pointer-events-none" />

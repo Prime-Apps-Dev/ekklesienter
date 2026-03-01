@@ -8,20 +8,22 @@ import { cn } from '@/core/utils/cn';
 
 const VariableEditor: React.FC = () => {
     const { t } = useTranslation();
-    const { activePresentationId, selectedSlideId, updateSlideVariable } = usePresentationStore();
+    const { activePresentationId, selectedPresentationId, previewSlideId, updateSlideVariable } = usePresentationStore();
 
     const presentation = useLiveQuery(
-        () => activePresentationId ? db.presentationFiles.get(activePresentationId) : undefined,
-        [activePresentationId]
+        () => selectedPresentationId ? db.presentationFiles.get(selectedPresentationId) : undefined,
+        [selectedPresentationId]
     );
 
     const selectedSlide = useMemo(() =>
-        presentation?.slides.find(s => s.id === selectedSlideId)
-        , [presentation, selectedSlideId]);
+        presentation?.slides?.find(s => s.id === previewSlideId)
+        , [presentation, previewSlideId]);
 
-    if (!selectedSlide) return null;
+    // Don't show editor for Bible slides (managed via Bible modal)
+    if (!selectedSlide || selectedSlide.blockId === 'bible') return null;
+    if (!selectedSlide.content) return null;
 
-    const vars = selectedSlide.content.variables;
+    const vars = selectedSlide.content.variables || {};
 
     const handleUpdate = (name: string, value: string) => {
         updateSlideVariable(selectedSlide.id, name, value);

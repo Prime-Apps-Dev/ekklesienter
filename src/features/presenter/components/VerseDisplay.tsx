@@ -9,6 +9,16 @@ import { cn } from '@/core/utils/cn';
 import { usePresenterStore } from '@/core/store/presenterStore';
 import { PresenterSettings } from '@/core/types';
 import { SlideBackground } from './SlideBackground';
+import { loadFontOffline } from '@/core/utils/fontLoader';
+
+// Global cache for calculated font sizes to avoid re-calculating the same layout
+// Key: string hash of (verseText, width, height, fontFamily, weight, settings)
+const fontSizeCache = new Map<string, number>();
+
+// Helper to generate a cache key
+const getCacheKey = (verse: Verse, width: number, height: number, settings: PresenterSettings) => {
+    return `${verse.id}-${width}-${height}-${settings.font.family}-${settings.font.weight}-${settings.display.padding.top}-${settings.display.padding.bottom}-${settings.display.referenceGap}-${settings.reference.position}`;
+};
 
 interface VerseDisplayProps {
     verse: Verse;
@@ -68,33 +78,44 @@ export const VerseDisplay: React.FC<VerseDisplayProps> = ({
         const container = containerRef.current;
         const content = contentRef.current;
 
-        // clientWidth/clientHeight = inner size (no border). Subtract a small safety margin
-        // so the font never gets calculated right at the boundary.
         const availableHeight = container.clientHeight - TEXT_INNER_PADDING * 2 - 1;
         const availableWidth = container.clientWidth - TEXT_INNER_PADDING * 2;
 
         if (availableHeight <= 0 || availableWidth <= 0) return;
 
+        // Check Cache first
+        const cacheKey = getCacheKey(verse, availableWidth, availableHeight, settings);
+        if (fontSizeCache.has(cacheKey)) {
+            const cachedSize = fontSizeCache.get(cacheKey)!;
+            setComputedFontSize(cachedSize);
+            setIsReady(true);
+            return;
+        }
+
         setIsReady(false);
 
-        // Force content width to match available so text wraps exactly as it will at render time
+        // Force content width to match available
         const prevMaxWidth = content.style.maxWidth;
         const prevOverflow = container.style.overflow;
         content.style.maxWidth = `${availableWidth}px`;
-        // Lift parent clipping so getBoundingClientRect returns the true rendered size
         container.style.overflow = 'visible';
 
+        // Smarter initial range for binary search
+        const charCount = verse.text.length;
         let lo = 0.5;
-        let hi = 40;
-        const PRECISION = 0.05;
+        let hi = charCount > 500 ? 10 : charCount > 200 ? 20 : 40;
+        const PRECISION = 0.01; // Increased precision for better fit
+
+        // Subtract a bit more safety margin to prevent rounding-related overflows
+        const safeHeight = availableHeight - 4; // Extra 4px safety buffer
 
         while (hi - lo > PRECISION) {
             const mid = (lo + hi) / 2;
             content.style.fontSize = `${mid}rem`;
 
-            // getBoundingClientRect after overflow:visible gives true content dimensions
             const rect = content.getBoundingClientRect();
-            const fits = rect.height <= availableHeight && rect.width <= availableWidth;
+            // Using a strict comparison plus a small buffer
+            const fits = rect.height <= safeHeight && rect.width <= availableWidth;
 
             if (fits) {
                 lo = mid;
@@ -107,9 +128,10 @@ export const VerseDisplay: React.FC<VerseDisplayProps> = ({
         content.style.maxWidth = prevMaxWidth;
         container.style.overflow = prevOverflow;
 
+        fontSizeCache.set(cacheKey, lo);
         setComputedFontSize(lo);
         setIsReady(true);
-    }, [autoFit]);
+    }, [autoFit, verse, settings]);
 
     // Recalculate when verse content or display settings change
     useLayoutEffect(() => {
@@ -129,9 +151,16 @@ export const VerseDisplay: React.FC<VerseDisplayProps> = ({
     // ResizeObserver on the verse container (catches window / slide resize)
     useEffect(() => {
         if (!autoFit || !containerRef.current) return;
-        const ro = new ResizeObserver(() => calculateFit());
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const ro = new ResizeObserver(() => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => calculateFit(), 50); // Debounce resizing
+        });
         ro.observe(containerRef.current);
-        return () => ro.disconnect();
+        return () => {
+            ro.disconnect();
+            clearTimeout(timeoutId);
+        };
     }, [autoFit, calculateFit]);
 
     // ResizeObserver on the reference block — recalc when reference size changes
@@ -151,23 +180,17 @@ export const VerseDisplay: React.FC<VerseDisplayProps> = ({
         return () => document.fonts.removeEventListener('loadingdone', recalc);
     }, [autoFit, calculateFit]);
 
-    // Load custom Google Fonts
+    // Load custom fonts locally
     useEffect(() => {
-        const loadFont = (family: string | undefined, weight: string = '400') => {
-            if (!family) return;
-            const standardFonts = ['sans', 'serif', 'mono', 'system-ui', 'inherit'];
-            if (standardFonts.includes(family)) return;
-            const fontId = `font-${family.replace(/\s+/g, '-').toLowerCase()}`;
-            if (!document.getElementById(fontId)) {
-                const link = document.createElement('link');
-                link.id = fontId;
-                link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/\s+/g, '+')}:wght@${weight};700&display=swap`;
-                link.rel = 'stylesheet';
-                document.head.appendChild(link);
-            }
-        };
-        loadFont(settings.font.family, settings.font.weight);
-        loadFont(settings.reference.fontFamily, '700');
+        const standardFonts = ['sans', 'serif', 'mono', 'system-ui', 'inherit'];
+
+        if (settings.font.family && !standardFonts.includes(settings.font.family)) {
+            loadFontOffline(settings.font.family, settings.font.weight);
+        }
+
+        if (settings.reference.fontFamily && !standardFonts.includes(settings.reference.fontFamily)) {
+            loadFontOffline(settings.reference.fontFamily, '700');
+        }
     }, [settings.font.family, settings.font.weight, settings.reference.fontFamily]);
 
     const shadowScale = computedFontSize / 4;
@@ -235,7 +258,7 @@ export const VerseDisplay: React.FC<VerseDisplayProps> = ({
                 )}
                 style={referenceStyle}
             >
-                {resolvedBookName} {verse.chapter}:{verse.verseNumber}
+                {bookName || resolvedBookName} {verse.chapter}:{verse.verseNumber}
             </span>
 
             {/* Brackets Right */}
@@ -261,7 +284,7 @@ export const VerseDisplay: React.FC<VerseDisplayProps> = ({
             className={cn('w-full h-full relative overflow-hidden', className)}
             style={{ borderRadius: settings?.display?.cornerRadius ? `${settings.display.cornerRadius}px` : undefined }}
         >
-            <SlideBackground settings={settings} />
+            <SlideBackground background={settings.background} />
 
             {/* Outer layout: outer padding + flex column */}
             <div

@@ -1,5 +1,5 @@
 {
-  "name": "Scripture Presenter",
+  "name": "Ekklesienter",
   "description": "A high-performance, aesthetically pleasing Bible presentation tool featuring Markdown rendering, global state management, and a responsive 3-pane layout.",
   "requestFramePermissions": []
 }

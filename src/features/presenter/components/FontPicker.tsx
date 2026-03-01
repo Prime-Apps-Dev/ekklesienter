@@ -1,13 +1,11 @@
 import React from 'react';
 import { usePresenterStore } from '@/core/store/presenterStore';
-import { Type, Check, TextQuote, Palette } from 'lucide-react';
+import { Type, Palette } from 'lucide-react';
 import { cn } from '@/core/utils/cn';
 import { CustomSlider } from '@/components/CustomSlider';
-import { CustomColorPicker } from '@/components/CustomColorPicker';
 import { CompactColorPicker } from '@/components/CompactColorPicker';
 import { useTranslation } from 'react-i18next';
-
-import { AVAILABLE_FONTS } from '@/core/data/fonts';
+import { FontLibrary } from './FontLibrary';
 
 export const FontPicker: React.FC = () => {
     const { t } = useTranslation();
@@ -29,42 +27,11 @@ export const FontPicker: React.FC = () => {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both">
             {/* Font Family Selection Bento Block */}
             <div className="bg-white/3 backdrop-blur-xl border border-white/5 rounded-3xl p-6 space-y-4 shadow-xl">
-                <div className="flex items-center gap-3 px-1">
-                    <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center border border-accent/30">
-                        <TextQuote className="w-4 h-4 text-accent" />
-                    </div>
-                    <label className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em]">{t('typography_library')}</label>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
-                    {AVAILABLE_FONTS.map((f) => (
-                        <button
-                            key={f.name}
-                            onClick={() => handleFontSelect(f.name)}
-                            className={cn(
-                                "flex items-center justify-between px-5 py-4 rounded-2xl border transition-all duration-300 group relative overflow-hidden",
-                                font.family === f.name
-                                    ? "bg-accent/15 border-accent/40 text-accent shadow-md ring-1 ring-accent/20"
-                                    : "bg-black/20 border-white/5 text-stone-400 hover:border-white/20 hover:bg-white/5"
-                            )}
-                        >
-                            <div className="flex flex-col items-start relative z-10">
-                                <span className="text-base font-medium tracking-tight" style={{ fontFamily: f.name }}>{f.name}</span>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-[9px] uppercase tracking-[0.15em] opacity-40 font-bold">{f.category}</span>
-                                    {f.tags.includes('Cyrillic') && (
-                                        <span className="text-[8px] uppercase tracking-wider bg-white/5 px-1.5 py-0.5 rounded text-white/40">CYR</span>
-                                    )}
-                                </div>
-                            </div>
-                            {font.family === f.name && (
-                                <div className="p-1.5 rounded-full bg-accent text-accent-foreground shadow-lg animate-in zoom-in-50 duration-300 relative z-10">
-                                    <Check className="w-3 h-3" />
-                                </div>
-                            )}
-                        </button>
-                    ))}
-                </div>
+                <FontLibrary
+                    value={font.family}
+                    onSelect={handleFontSelect}
+                    showTitle={true}
+                />
             </div>
 
             {/* Core Metrics Bento Block */}

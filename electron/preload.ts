@@ -1,6 +1,9 @@
 import { ipcRenderer, contextBridge } from 'electron';
 
+console.log('⚡️ Preload script initialized');
+
 // --------- Expose some API to the Renderer process ---------
+console.log('⚡️ Exposing electron bridge to window...');
 contextBridge.exposeInMainWorld('electron', {
     ipcRenderer: {
         send(channel: string, ...args: any[]) {
@@ -14,5 +17,24 @@ contextBridge.exposeInMainWorld('electron', {
         invoke(channel: string, ...args: any[]) {
             return ipcRenderer.invoke(channel, ...args);
         },
+        selectFile(options: any) {
+            return ipcRenderer.invoke('select-file', options);
+        },
+        selectFolder() {
+            return ipcRenderer.invoke('select-folder');
+        },
+        readDirectoryRecursive(path: string) {
+            return ipcRenderer.invoke('read-directory-recursive', path);
+        },
+        readFileData(path: string) {
+            return ipcRenderer.invoke('read-file-data', path);
+        },
+        templates: {
+            list: () => ipcRenderer.invoke('templates:list'),
+            read: (filename: string) => ipcRenderer.invoke('templates:read', filename),
+            write: (filename: string, data: Uint8Array) => ipcRenderer.invoke('templates:write', filename, data),
+            delete: (filename: string) => ipcRenderer.invoke('templates:delete', filename),
+            getPath: () => ipcRenderer.invoke('templates:get-path'),
+        }
     },
 });

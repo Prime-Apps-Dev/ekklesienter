@@ -43,6 +43,13 @@
 body {
     background-color: var(--background);
     color: var(--foreground);
+    user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+    user-select: text;
 }
 
 /* Use standard class to ensure override */

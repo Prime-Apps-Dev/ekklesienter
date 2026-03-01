@@ -117,12 +117,36 @@ export const CustomColorPicker: React.FC<CustomColorPickerProps> = ({
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
     };
 
-    const handleHueMove = (e: React.PointerEvent | MouseEvent) => {
+    const handleHueMove = (e: PointerEvent | React.PointerEvent) => {
         if (!hueRef.current) return;
         const rect = hueRef.current.getBoundingClientRect();
         const h = Math.max(0, Math.min(360, ((e.clientX - rect.left) / rect.width) * 360));
         updateColor({ ...hsv, h });
     };
+
+    useEffect(() => {
+        if (!isPickingSaturation) return;
+        const onMove = (e: PointerEvent) => handleSaturationMove(e);
+        const onUp = () => setIsPickingSaturation(false);
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        return () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+    }, [isPickingSaturation, hsv, updateColor]);
+
+    useEffect(() => {
+        if (!isPickingHue) return;
+        const onMove = (e: PointerEvent) => handleHueMove(e);
+        const onUp = () => setIsPickingHue(false);
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        return () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+    }, [isPickingHue, hsv, updateColor]);
 
     return (
         <div className={cn("space-y-4", className)}>
@@ -140,8 +164,6 @@ export const CustomColorPicker: React.FC<CustomColorPickerProps> = ({
                     className="relative w-full aspect-square rounded-xl overflow-hidden cursor-crosshair select-none"
                     style={{ backgroundColor: `hsl(${hsv.h}, 100%, 50%)` }}
                     onPointerDown={handleSaturationPointerDown}
-                    onPointerMove={(e) => isPickingSaturation && handleSaturationMove(e)}
-                    onPointerUp={() => setIsPickingSaturation(false)}
                 >
                     <div className="absolute inset-0 bg-linear-to-r from-white to-transparent" />
                     <div className="absolute inset-0 bg-linear-to-b from-transparent to-black" />
@@ -163,8 +185,6 @@ export const CustomColorPicker: React.FC<CustomColorPickerProps> = ({
                         className="relative h-6 w-full rounded-lg cursor-pointer select-none overflow-hidden"
                         style={{ background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)' }}
                         onPointerDown={handleHuePointerDown}
-                        onPointerMove={(e) => isPickingHue && handleHueMove(e)}
-                        onPointerUp={() => setIsPickingHue(false)}
                     >
                         {/* Hue Handle */}
                         <div

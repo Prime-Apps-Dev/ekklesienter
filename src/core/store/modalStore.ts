@@ -2,7 +2,14 @@ import { create } from 'zustand';
 
 export enum ModalType {
     CUSTOMIZATION = 'CUSTOMIZATION',
+    BIBLE_SELECTION = 'BIBLE_SELECTION',
+    PRESENTATION_PICKER = 'PRESENTATION_PICKER',
+    TEMPLATE_PICKER = 'TEMPLATE_PICKER',
+    AUDIO_PICKER = 'AUDIO_PICKER',
+    AUDIO_CONFLICT = 'AUDIO_CONFLICT',
+    SAVE_NESTED_CONFIRM = 'SAVE_NESTED_CONFIRM',
 }
+
 
 interface ModalState {
     id: ModalType;

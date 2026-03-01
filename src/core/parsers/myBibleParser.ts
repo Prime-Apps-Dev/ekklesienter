@@ -8,6 +8,7 @@ import {
     BOOK_ORDER,
     BOOK_NAMES
 } from '@/core/data/bookData';
+import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 
 /**
  * MyBible SQLite Parser
@@ -77,8 +78,9 @@ export class MyBibleParser {
     private async getSql() {
         if (!this.sqlPromise) {
             this.sqlPromise = initSqlJs({
-                // Load wasm from CDN
-                locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+                // Load wasm from Vite-managed URL instead of absolute path
+                // to ensure it works in both dev (localhost) and production (file:// or custom protocol)
+                locateFile: () => wasmUrl
             });
         }
         return this.sqlPromise;

@@ -16,6 +16,7 @@ import { useContainFit } from '@/core/hooks/useContainFit';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/core/db';
 import { ParallelVerseDisplay } from './ParallelVerseDisplay';
+import { usePresentationStore } from '@/core/store/presentationStore';
 
 type Tab = 'background' | 'font' | 'translation' | 'style' | 'layout';
 
@@ -45,19 +46,32 @@ const CustomizationPanel: React.FC = () => {
         [activeVerse?.bookId, activeVerse?.chapter, activeVerse?.verseNumber, secondTranslationId]
     );
 
+    const { activePresentation, previewSlideId } = usePresentationStore();
+    const selectedSlide = activePresentation?.slides.find(s => s.id === previewSlideId);
+    const isBibleSlide = selectedSlide?.blockId === 'bible';
+
     const [activeTab, setActiveTab] = useState<Tab>('background');
 
     const isOpen = isModalOpen(ModalType.CUSTOMIZATION);
     const ratio = settings.display.aspectRatio || 16 / 9;
     const { width: fitW, height: fitH, containerRef: previewRef } = useContainFit(ratio, 24);
 
-    const currentVerse = activeVerse || {
+    const currentVerse = isBibleSlide && selectedSlide?.content?.variables ? (
+        {
+            id: selectedSlide.id,
+            bookId: selectedSlide.content.variables.bookId as string || 'GEN',
+            chapter: Number(selectedSlide.content.variables.chapter) || 1,
+            verseNumber: Number(selectedSlide.content.variables.verse) || 1,
+            text: selectedSlide.content.variables.content as string || '',
+            translationId: selectedSlide.content.variables.translationId as string || 'KJV'
+        }
+    ) : (activeVerse || {
         bookId: 'GEN',
         chapter: 1,
         verseNumber: 1,
         text: 'In the beginning God created the heaven and the earth.',
         translationId: 'KJV'
-    };
+    });
 
     // Initialize/Cleanup Design Mode
     React.useEffect(() => {
@@ -185,7 +199,14 @@ const CustomizationPanel: React.FC = () => {
                 {/* ─── Scrollable Content ─── */}
                 <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar px-6 py-6 scroll-smooth min-h-0">
                     <div className="pb-4">
-                        {activeTab === 'background' && <BackgroundPicker />}
+                        {activeTab === 'background' && (
+                            <BackgroundPicker
+                                background={(draftSettings || settings).background}
+                                onChange={(bg) => {
+                                    updateDraft({ background: { ...(draftSettings || settings).background, ...bg } });
+                                }}
+                            />
+                        )}
                         {activeTab === 'font' && <FontPicker />}
                         {activeTab === 'translation' && <TranslationLabelPicker />}
                         {activeTab === 'style' && <ReferenceStylePicker />}

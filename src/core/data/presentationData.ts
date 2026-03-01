@@ -1,9 +1,18 @@
-import { IBlock, ISection, IWorkflow, IWorkflowFolder } from '../types';
+import { IBlock, ISection, IWorkflow, IWorkflowFolder, ITemplate } from '../types';
 
 /**
  * Default slide blocks available in the library
  */
 export const DEFAULT_BLOCKS: IBlock[] = [
+    {
+        id: 'default',
+        name: 'Default',
+        nameRu: 'По умолчанию',
+        icon: 'Square',
+        color: '#94A3B8',
+        description: 'Empty blank slide',
+        defaultSlides: 1
+    },
     {
         id: 'idle',
         name: 'Idle / Welcome',
@@ -68,15 +77,25 @@ export const DEFAULT_BLOCKS: IBlock[] = [
         defaultSlides: 1
     },
     {
-        id: 'custom',
-        name: 'Custom',
-        nameRu: 'Произвольный блок',
-        icon: 'Plus',
-        color: '#6366F1',
-        description: 'Создать свой блок',
-        defaultSlides: 1
+        id: 'bible',
+        name: 'Bible',
+        nameRu: 'Библия',
+        icon: 'BookOpen',
+        color: '#F59E0B',
+        description: 'Стих из Библии',
+        defaultSlides: 0 // Will open modal
+    },
+    {
+        id: 'master-presentation',
+        name: 'Master Presentation',
+        nameRu: 'Мастер-презентация',
+        icon: 'Layers',
+        color: '#F97316',
+        description: 'Вложенная презентация',
+        defaultSlides: 0
     }
 ];
+
 
 /**
  * Default sections (groups of blocks)
@@ -118,5 +137,50 @@ export const DEFAULT_WORKFLOWS: IWorkflow[] = [
         description: 'Standard service structure with worship and sermon',
         sectionIds: ['section-worship'],
         folderId: 'folder-sabbath'
+    }
+];
+
+/**
+ * Default slide templates per block category
+ */
+export const DEFAULT_TEMPLATES: ITemplate[] = [
+    {
+        id: 'blank-dark',
+        name: 'Blank Slide',
+        nameRu: 'Пустой слайд',
+        category: 'idle',
+        background: [{ id: 'blank-dark-bg', type: 'color', visible: true, opacity: 1, blendMode: 'normal', color: '#000000' }],
+        assets: [],
+        structure: { layout: 'blank' },
+        isUserCreated: false,
+    },
+    {
+        id: 'empty-slide',
+        name: 'Empty Slide',
+        nameRu: 'Пустой слайд',
+        category: 'default',
+        background: [{ id: 'empty-slide-bg', type: 'color', visible: true, opacity: 1, blendMode: 'normal', color: '#000000' }],
+        assets: [],
+        structure: { layout: 'blank' },
+        canvasItems: [],
+        isUserCreated: false,
+    },
+    {
+        id: 'bible-default',
+        name: 'Bible Default',
+        nameRu: 'Библия по умолчанию',
+        category: 'bible',
+        background: [{ id: 'bible-default-bg', type: 'color', visible: true, opacity: 1, blendMode: 'normal', color: '#000000' }],
+        assets: [],
+        structure: { layout: 'center' }, // Center layout uses title/subtitle/content
+        textStyle: {
+            fontFamily: 'Inter',
+            color: '#FFFFFF',
+            contentColor: '#A8A29E',
+            titleTransform: 'uppercase',
+            titleWeight: '900',
+        },
+        canvasItems: [],
+        isUserCreated: false,
     }
 ];

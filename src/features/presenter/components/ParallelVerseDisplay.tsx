@@ -8,6 +8,13 @@ import { cn } from '@/core/utils/cn';
 
 import { usePresenterStore } from '@/core/store/presenterStore';
 import { SlideBackground } from './SlideBackground';
+import { loadFontOffline } from '@/core/utils/fontLoader';
+
+const fontSizeCache = new Map<string, number>();
+
+const getCacheKey = (v1: Verse, v2: Verse, width: number, height: number, settings: PresenterSettings) => {
+    return `${v1.id}-${v2.id}-${width}-${height}-${settings.font.family}-${settings.font.weight}-${settings.display.padding.top}-${settings.display.padding.bottom}-${settings.display.referenceGap}-${settings.display.translationGap}-${settings.display.verseGap}`;
+};
 
 interface ParallelVerseDisplayProps {
     verse1: Verse;
@@ -68,31 +75,38 @@ export const ParallelVerseDisplay: React.FC<ParallelVerseDisplayProps> = ({
         const container = containerRef.current;
         const content = contentRef.current;
 
-        // clientWidth/clientHeight = inner size (no border). Subtract a small safety margin
-        // so the font never gets calculated right at the boundary.
         const availableHeight = container.clientHeight - TEXT_INNER_PADDING * 2 - 1;
         const availableWidth = container.clientWidth - TEXT_INNER_PADDING * 2;
 
         if (availableHeight <= 0 || availableWidth <= 0) return;
 
+        // Check Cache first
+        const cacheKey = getCacheKey(verse1, verse2, availableWidth, availableHeight, settings);
+        if (fontSizeCache.has(cacheKey)) {
+            const cachedSize = fontSizeCache.get(cacheKey)!;
+            setComputedFontSize(cachedSize);
+            setIsReady(true);
+            return;
+        }
+
         setIsReady(false);
 
-        // Force content width to match available so text wraps exactly as it will at render time
+        // Force content width to match available
         const prevMaxWidth = content.style.maxWidth;
         const prevOverflow = container.style.overflow;
         content.style.maxWidth = `${availableWidth}px`;
-        // Lift parent clipping so getBoundingClientRect returns the true rendered size
         container.style.overflow = 'visible';
 
+        // Smarter initial range
+        const charCount = verse1.text.length + verse2.text.length;
         let lo = 0.5;
-        let hi = 40;
-        const PRECISION = 0.05;
+        let hi = charCount > 1000 ? 8 : charCount > 500 ? 15 : 30;
+        const PRECISION = 0.1;
 
         while (hi - lo > PRECISION) {
             const mid = (lo + hi) / 2;
             content.style.fontSize = `${mid}rem`;
 
-            // getBoundingClientRect after overflow:visible gives true content dimensions
             const rect = content.getBoundingClientRect();
             const fits = rect.height <= availableHeight && rect.width <= availableWidth;
 
@@ -107,9 +121,10 @@ export const ParallelVerseDisplay: React.FC<ParallelVerseDisplayProps> = ({
         content.style.maxWidth = prevMaxWidth;
         container.style.overflow = prevOverflow;
 
+        fontSizeCache.set(cacheKey, lo);
         setComputedFontSize(lo);
         setIsReady(true);
-    }, [autoFit]);
+    }, [autoFit, verse1, verse2, settings]);
 
     // Recalculate when verse content or display settings change
     useLayoutEffect(() => {
@@ -132,9 +147,16 @@ export const ParallelVerseDisplay: React.FC<ParallelVerseDisplayProps> = ({
     // ResizeObserver on the verse container (catches window / slide resize)
     useEffect(() => {
         if (!autoFit || !containerRef.current) return;
-        const ro = new ResizeObserver(() => calculateFit());
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const ro = new ResizeObserver(() => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => calculateFit(), 50);
+        });
         ro.observe(containerRef.current);
-        return () => ro.disconnect();
+        return () => {
+            ro.disconnect();
+            clearTimeout(timeoutId);
+        };
     }, [autoFit, calculateFit]);
 
     // ResizeObserver on the reference block
@@ -167,24 +189,21 @@ export const ParallelVerseDisplay: React.FC<ParallelVerseDisplayProps> = ({
         return () => document.fonts.removeEventListener('loadingdone', recalc);
     }, [autoFit, calculateFit]);
 
-    // Load custom Google Fonts
+    // Load custom fonts locally
     useEffect(() => {
-        const loadFont = (family: string | undefined, weight: string = '400') => {
-            if (!family) return;
-            const standardFonts = ['sans', 'serif', 'mono', 'system-ui', 'inherit'];
-            if (standardFonts.includes(family)) return;
-            const fontId = `font-${family.replace(/\s+/g, '-').toLowerCase()}`;
-            if (!document.getElementById(fontId)) {
-                const link = document.createElement('link');
-                link.id = fontId;
-                link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/\s+/g, '+')}:wght@${weight};700&display=swap`;
-                link.rel = 'stylesheet';
-                document.head.appendChild(link);
-            }
-        };
-        loadFont(settings.font.family, settings.font.weight);
-        loadFont(settings.reference.fontFamily, '700');
-        loadFont(settings.translationLabel?.fontFamily, '700');
+        const standardFonts = ['sans', 'serif', 'mono', 'system-ui', 'inherit'];
+
+        if (settings.font.family && !standardFonts.includes(settings.font.family)) {
+            loadFontOffline(settings.font.family, settings.font.weight);
+        }
+
+        if (settings.reference.fontFamily && !standardFonts.includes(settings.reference.fontFamily)) {
+            loadFontOffline(settings.reference.fontFamily, '700');
+        }
+
+        if (settings.translationLabel?.fontFamily && !standardFonts.includes(settings.translationLabel.fontFamily)) {
+            loadFontOffline(settings.translationLabel.fontFamily, '700');
+        }
     }, [settings.font.family, settings.font.weight, settings.reference.fontFamily, settings.translationLabel?.fontFamily]);
 
     const shadowScale = computedFontSize / 4;
@@ -287,7 +306,7 @@ export const ParallelVerseDisplay: React.FC<ParallelVerseDisplayProps> = ({
             className={cn('w-full h-full relative overflow-hidden', className)}
             style={{ borderRadius: settings?.display?.cornerRadius ? `${settings.display.cornerRadius}px` : undefined }}
         >
-            <SlideBackground settings={settings} />
+            <SlideBackground background={settings.background} />
 
             {/* Outer layout: outer padding + flex column */}
             <div

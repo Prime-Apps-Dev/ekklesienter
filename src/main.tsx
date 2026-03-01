@@ -1,20 +1,32 @@
 import React from 'react';
+import { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './app/App';
 import './core/styles/globals.css';
-import './core/styles/fonts.ts'; // Import fonts
-import './core/i18n'; // Initialize i18n
+import './core/i18n';
+import './core/styles/fonts';
+import { PerformanceMonitor } from './core/components/PerformanceMonitor';
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
+// Global Error Logging for Development
+if (import.meta.env.DEV) {
+  window.addEventListener('error', (event) => {
+    console.error('RENDERER ERROR:', event.message, '\nAt:', event.filename, ':', event.lineno, ':', event.colno);
+    console.error('Stack:', event.error?.stack);
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('UNHANDLED RENDERER REJECTION:', event.reason);
+  });
+
+  console.log('Renderer: Error Logging Initialized');
+  console.log('Renderer: window.electron status:', window.electron ? 'Available' : 'NOT FOUND');
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <React.Suspense fallback={<div className="h-screen w-screen bg-stone-950" />}>
+    <PerformanceMonitor />
+    <Suspense fallback={<div className="h-screen w-screen bg-stone-950 flex items-center justify-center text-stone-500 font-serif">Loading...</div>}>
       <App />
-    </React.Suspense>
-  </React.StrictMode>
+    </Suspense>
+  </React.StrictMode>,
 );

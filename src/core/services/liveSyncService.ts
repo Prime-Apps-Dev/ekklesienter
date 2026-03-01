@@ -1,4 +1,4 @@
-import { Verse, ISlide } from '../types';
+import { Verse, ISlide, ILogo } from '../types';
 
 /**
  * Service to centralize IPC communication with the Projector window.
@@ -44,29 +44,11 @@ export const LiveSyncService = {
     },
 
     /**
-     * Set blackout mode
+     * Set live override mode (blackout, whiteout, logo)
      */
-    setBlackout(active: boolean) {
+    setOverride(type: 'blackout' | 'whiteout' | 'logo' | null, logo: ILogo | null = null) {
         if (window.electron?.ipcRenderer) {
-            window.electron.ipcRenderer.send('projector-command', 'set-blackout', active);
-        }
-    },
-
-    /**
-     * Set whiteout mode
-     */
-    setWhiteout(active: boolean) {
-        if (window.electron?.ipcRenderer) {
-            window.electron.ipcRenderer.send('projector-command', 'set-whiteout', active);
-        }
-    },
-
-    /**
-     * Set logo mode
-     */
-    setLogo(active: boolean, url: string | null = null) {
-        if (window.electron?.ipcRenderer) {
-            window.electron.ipcRenderer.send('projector-command', 'set-logo', { active, url });
+            window.electron.ipcRenderer.send('projector-command', 'set-override', { type, logo });
         }
     },
 

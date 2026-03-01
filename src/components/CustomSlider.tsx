@@ -10,6 +10,7 @@ interface CustomSliderProps {
     label?: string;
     unit?: string;
     className?: string;
+    formatValue?: (value: number) => string;
 }
 
 export const CustomSlider: React.FC<CustomSliderProps> = ({
@@ -20,7 +21,8 @@ export const CustomSlider: React.FC<CustomSliderProps> = ({
     onChange,
     label,
     unit = '',
-    className
+    className,
+    formatValue
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -56,6 +58,18 @@ export const CustomSlider: React.FC<CustomSliderProps> = ({
         setIsDragging(false);
     };
 
+    useEffect(() => {
+        if (!isDragging) return;
+        const onMove = (e: PointerEvent) => onChange(calculateValue(e.clientX));
+        const onUp = () => setIsDragging(false);
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        return () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+    }, [isDragging, calculateValue, onChange]);
+
     const percentage = ((value - min) / (max - min)) * 100;
     const stops = [0, 20, 40, 60, 80, 100];
 
@@ -65,7 +79,7 @@ export const CustomSlider: React.FC<CustomSliderProps> = ({
                 <div className="flex items-center justify-between px-1">
                     <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">{label}</label>
                     <span className="text-xs font-mono text-accent">
-                        {unit === '%' ? Math.round(percentage) : value}{unit}
+                        {formatValue ? formatValue(value) : (unit === '%' ? Math.round(percentage) : value) + unit}
                     </span>
                 </div>
             )}
@@ -74,8 +88,6 @@ export const CustomSlider: React.FC<CustomSliderProps> = ({
                 ref={containerRef}
                 className="relative h-10 w-full bg-black/40 rounded-xl overflow-hidden cursor-pointer group active:scale-[0.99] transition-transform select-none"
                 onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
             >
                 {/* Track Fill */}
                 <div

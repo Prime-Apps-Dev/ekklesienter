@@ -24,6 +24,16 @@ export default defineConfig(({ mode }) => {
           // Shortcut of `build.rollupOptions.input`.
           // Preload scripts may contain Web assets, so use the `build.rollupOptions.input` instead `build.lib.entry`.
           input: 'electron/preload.ts',
+          vite: {
+            build: {
+              rollupOptions: {
+                output: {
+                  format: 'cjs',
+                  entryFileNames: '[name].cjs',
+                },
+              },
+            },
+          },
         },
         // Ployfill the Electron and Node.js built-in modules for Renderer process.
         // See 👉 https://github.com/electron-vite/vite-plugin-electron-renderer

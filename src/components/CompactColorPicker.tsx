@@ -108,6 +108,30 @@ export const CompactColorPicker: React.FC<CompactColorPickerProps> = ({
         onChange(hsvToHex(newHsv.h, newHsv.s, newHsv.v));
     }, [hsv, onChange]);
 
+    useEffect(() => {
+        if (!isDraggingWheel) return;
+        const onMove = (e: PointerEvent) => handleWheelMove(e);
+        const onUp = () => setIsDraggingWheel(false);
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        return () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+    }, [isDraggingWheel, handleWheelMove]);
+
+    useEffect(() => {
+        if (!isDraggingValue) return;
+        const onMove = (e: PointerEvent) => handleValueMove(e);
+        const onUp = () => setIsDraggingValue(false);
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        return () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+    }, [isDraggingValue, handleValueMove]);
+
     const handleWheelDoubleClick = () => {
         const newHsv = { ...hsv, h: 0, s: 0 };
         setHsv(newHsv);
@@ -144,8 +168,6 @@ export const CompactColorPicker: React.FC<CompactColorPickerProps> = ({
                             handleWheelMove(e);
                             (e.target as HTMLElement).setPointerCapture(e.pointerId);
                         }}
-                        onPointerMove={(e) => isDraggingWheel && handleWheelMove(e)}
-                        onPointerUp={() => setIsDraggingWheel(false)}
                         onDoubleClick={handleWheelDoubleClick}
                         title="Double-click to reset"
                     >
@@ -175,8 +197,6 @@ export const CompactColorPicker: React.FC<CompactColorPickerProps> = ({
                             handleValueMove(e);
                             (e.target as HTMLElement).setPointerCapture(e.pointerId);
                         }}
-                        onPointerMove={(e) => isDraggingValue && handleValueMove(e)}
-                        onPointerUp={() => setIsDraggingValue(false)}
                     >
                         {/* Handle */}
                         <div

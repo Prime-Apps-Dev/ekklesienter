@@ -5,7 +5,9 @@ import GeneralSettings from './GeneralSettings';
 import DataSettings from './DataSettings';
 import DisplaySettings from './DisplaySettings';
 import AboutSettings from './AboutSettings';
-import { X, Globe, Database, Monitor, Info } from 'lucide-react';
+import LogoSettings from './LogoSettings';
+import OverrideSettings from './OverrideSettings';
+import { X, Globe, Database, Monitor, Info, ImageIcon, Layers } from 'lucide-react';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -24,6 +26,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             case 'general': return <GeneralSettings />;
             case 'displays': return <DisplaySettings />;
             case 'data': return <DataSettings />;
+            case 'logo': return <LogoSettings />;
+            case 'overrides': return <OverrideSettings />;
             case 'about': return <AboutSettings />;
             default: return <GeneralSettings />;
         }
@@ -59,6 +63,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                     {activeTab === 'general' && <Globe className="w-6 h-6 text-accent animate-in zoom-in duration-500" />}
                                     {activeTab === 'displays' && <Monitor className="w-6 h-6 text-accent animate-in zoom-in duration-500" />}
                                     {activeTab === 'data' && <Database className="w-6 h-6 text-accent animate-in zoom-in duration-500" />}
+                                    {activeTab === 'logo' && <ImageIcon className="w-6 h-6 text-accent animate-in zoom-in duration-500" />}
+                                    {activeTab === 'overrides' && <Layers className="w-6 h-6 text-accent animate-in zoom-in duration-500" />}
                                     {activeTab === 'about' && <Info className="w-6 h-6 text-accent animate-in zoom-in duration-500" />}
                                 </div>
                             </div>
@@ -77,6 +83,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                     {activeTab === 'general' && t('appearance')}
                                     {activeTab === 'displays' && t('displays')}
                                     {activeTab === 'data' && t('bible_translations')}
+                                    {activeTab === 'logo' && t('church_logo', 'Church Logo')}
+                                    {activeTab === 'overrides' && t('overrides', 'Overrides')}
                                     {activeTab === 'about' && t('about_app')}
                                 </h2>
                             </div>
